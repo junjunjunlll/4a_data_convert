@@ -128,18 +128,13 @@ class DataFilterTab(QWidget):
         output_dir_layout = QHBoxLayout()
         self.output_dir_label = QLabel("输出目录：")
 
-        # # 获取脚本所在目录
-        # base_path = os.path.dirname(os.path.abspath(__file__))
-        # default_output_dir = os.path.join(base_path, '..', 'output')
-
         # 获取EXE文件所在的目录
         if getattr(sys, 'frozen', False):
             # 如果程序被PyInstaller打包
             base_path = os.path.dirname(sys.executable)
         else:
-            # 如果在PyCharm中直接运行
-            base_path = os.path.dirname(os.path.abspath(__file__))
-            base_path = os.path.join(base_path, '..')
+            # 如果在PyCharm中直接运行，回到项目根目录
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
         default_output_dir = os.path.join(base_path, 'output')
 

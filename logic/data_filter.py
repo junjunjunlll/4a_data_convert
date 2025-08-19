@@ -4,15 +4,30 @@ import re
 
 
 def read_file(file_path, header_row):
-    """根据文件扩展名读取CSV或Excel文件，并返回DataFrame。"""
+    """
+    根据文件扩展名读取CSV或Excel文件，并自动尝试解析编码。
+    返回DataFrame。
+    """
     try:
         if file_path.endswith('.csv'):
-            # 使用 dtype='str' 参数来确保所有列都以字符串类型读取
-            df = pd.read_csv(file_path, header=header_row, dtype='str')
+            # 常见编码列表，可以根据需要调整顺序
+            common_encodings = ['utf-8', 'gbk', 'gb18030', 'latin-1', 'iso-8859-1']
+
+            for encoding in common_encodings:
+                try:
+                    # 尝试用当前编码读取CSV文件
+                    df = pd.read_csv(file_path, header=header_row, dtype='str', encoding=encoding)
+                    print(f"成功使用 '{encoding}' 编码读取文件：{os.path.basename(file_path)}")
+                    break  # 成功读取，跳出循环
+                except UnicodeDecodeError:
+                    print(f"尝试使用 '{encoding}' 编码失败，继续尝试...")
+                    continue  # 失败，继续下一次循环
+            else:
+                # 如果所有编码都尝试失败
+                raise ValueError("无法自动识别文件编码，请确保文件格式正确。")
         else:
-            # 对于Excel，无法在读取时直接设置所有列为字符串
+            # 对于Excel文件，编码通常不是问题
             df = pd.read_excel(file_path, header=header_row)
-            # 遍历所有列，将它们转换为字符串类型
             for col in df.columns:
                 df[col] = df[col].astype(str)
 
@@ -27,16 +42,13 @@ def read_file(file_path, header_row):
 def read_file_b_criteria(file_b, header_row):
     """读取文件b的第一列作为筛选条件。"""
     try:
-        # 使用 read_file 函数
+        # 使用自动处理编码的 read_file 函数
         df_b = read_file(file_b, header_row=header_row)
 
         if df_b.empty or len(df_b.columns) == 0:
             raise ValueError("文件b内容为空，无法进行筛选。")
 
-        # 获取第一列的列名
         col_b_name = df_b.columns[0]
-
-        # 使用第一列的数据作为筛选值
         filter_values = set(df_b[col_b_name].dropna())
 
         if not filter_values:
@@ -52,15 +64,13 @@ def read_and_filter(file_a, filter_criteria, col_a, match_mode, header_row):
     此函数不负责文件写入。
     """
     try:
-        # 使用 read_file 函数
+        # 使用自动处理编码的 read_file 函数
         df_a = read_file(file_a, header_row=header_row)
 
         if col_a not in df_a.columns:
-            # 可以在这里选择跳过文件或报错，目前选择报错
             raise ValueError(f"文件a '{os.path.basename(file_a)}' 中找不到列：'{col_a}'")
 
         if match_mode == "精确匹配":
-            # 将文件a中用于匹配的列也转换为字符串
             df_filtered = df_a[df_a[col_a].isin(filter_criteria)]
         elif match_mode == "模糊匹配":
             escaped_values = [re.escape(val) for val in filter_criteria]
@@ -72,7 +82,6 @@ def read_and_filter(file_a, filter_criteria, col_a, match_mode, header_row):
         return df_filtered
 
     except Exception as e:
-        # 为了调试方便，捕获并打印完整的 traceback
         import traceback
         traceback.print_exc()
         raise Exception(f"处理文件 '{os.path.basename(file_a)}' 失败：{e}")
