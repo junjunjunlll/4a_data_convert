@@ -4,8 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="dbe1d36c-db24-478c-90fa-25d51974cc45" name="更改" comment="完成第三个页面匹配分割页面优化">
-      <change afterPath="$PROJECT_DIR$/README" afterDir="false" />
+    <list default="true" id="dbe1d36c-db24-478c-90fa-25d51974cc45" name="更改" comment="1. 优化数据筛选页，增加左模糊以及右模糊匹配&#10;2. readme编写第一个功能页介绍">
+      <changelist_data name="HE JJ" email="s526168173@hotmail.com" automatic="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -20,6 +20,11 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="PREVIOUS_COMMIT_AUTHORS">
+      <list>
+        <option value="HE JJ &lt;s526168173@hotmail.com&gt;" />
+      </list>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="ProjectColorInfo">{
@@ -105,17 +110,29 @@
       <option name="project" value="LOCAL" />
       <updated>1755659555190</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="1. 优化数据筛选页，增加左模糊以及右模糊匹配&#10;2. readme编写第一个功能页介绍">
+      <option name="closed" value="true" />
+      <created>1755660152131</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1755660152131</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="UpdateCopyrightCheckinHandler">
+    <option name="UPDATE_COPYRIGHT" value="true" />
+  </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="默认输出目录逻辑修改为获取exe文件当前目录&#10;配置打包属性，后续通过控制台执行pyinstaller main.spec进行打包" />
     <MESSAGE value="初步做好第三个页面，准备每个页面日志分别打印" />
     <MESSAGE value="完成第三个页面匹配分割页面优化" />
-    <option name="LAST_COMMIT_MESSAGE" value="完成第三个页面匹配分割页面优化" />
+    <MESSAGE value="1. 优化数据筛选页，增加左模糊以及右模糊匹配&#10;2. readme编写第一个功能页介绍" />
+    <option name="LAST_COMMIT_MESSAGE" value="1. 优化数据筛选页，增加左模糊以及右模糊匹配&#10;2. readme编写第一个功能页介绍" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
