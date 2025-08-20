@@ -4,15 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="dbe1d36c-db24-478c-90fa-25d51974cc45" name="更改" comment="初步做好第三个页面，准备每个页面日志分别打印">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/logic/data_match.py" beforeDir="false" afterPath="$PROJECT_DIR$/logic/data_match.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/logic/match_and_split.py" beforeDir="false" afterPath="$PROJECT_DIR$/logic/match_and_split.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/logic/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/logic/utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.spec" beforeDir="false" afterPath="$PROJECT_DIR$/main.spec" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/data_filter_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/data_filter_tab.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/data_match_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/data_match_tab.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/main_windows.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/main_windows.py" afterDir="false" />
+    <list default="true" id="dbe1d36c-db24-478c-90fa-25d51974cc45" name="更改" comment="完成第三个页面匹配分割页面优化">
+      <change afterPath="$PROJECT_DIR$/README" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -104,7 +97,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755598951622</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="完成第三个页面匹配分割页面优化">
+      <option name="closed" value="true" />
+      <created>1755659555190</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1755659555190</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -113,7 +114,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="默认输出目录逻辑修改为获取exe文件当前目录&#10;配置打包属性，后续通过控制台执行pyinstaller main.spec进行打包" />
     <MESSAGE value="初步做好第三个页面，准备每个页面日志分别打印" />
-    <option name="LAST_COMMIT_MESSAGE" value="初步做好第三个页面，准备每个页面日志分别打印" />
+    <MESSAGE value="完成第三个页面匹配分割页面优化" />
+    <option name="LAST_COMMIT_MESSAGE" value="完成第三个页面匹配分割页面优化" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

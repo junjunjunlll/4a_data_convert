@@ -72,10 +72,26 @@ def read_and_filter(file_a, filter_criteria, col_a, match_mode, header_row):
 
         if match_mode == "精确匹配":
             df_filtered = df_a[df_a[col_a].isin(filter_criteria)]
-        elif match_mode == "模糊匹配":
-            escaped_values = [re.escape(val) for val in filter_criteria]
+        elif match_mode == "包含匹配":
+            escaped_values = [re.escape(str(val)) for val in filter_criteria if pd.notna(val)]
+            if not escaped_values:
+                return pd.DataFrame()
             pattern = '|'.join(escaped_values)
             df_filtered = df_a[df_a[col_a].str.contains(pattern, case=False, na=False)]
+        # === 更改：新增前缀和后缀匹配逻辑 ===
+        elif match_mode == "前缀匹配":
+            escaped_values = [f"^{re.escape(str(val))}" for val in filter_criteria if pd.notna(val)]
+            if not escaped_values:
+                return pd.DataFrame()
+            pattern = '|'.join(escaped_values)
+            df_filtered = df_a[df_a[col_a].str.contains(pattern, case=False, na=False)]
+        elif match_mode == "后缀匹配":
+            escaped_values = [f"{re.escape(str(val))}$" for val in filter_criteria if pd.notna(val)]
+            if not escaped_values:
+                return pd.DataFrame()
+            pattern = '|'.join(escaped_values)
+            df_filtered = df_a[df_a[col_a].str.contains(pattern, case=False, na=False)]
+        # === 更改结束 ===
         else:
             raise ValueError("不支持的匹配模式")
 

@@ -39,8 +39,6 @@ class DataFilterTab(QWidget):
 
         self.setup_ui()
 
-        # 关键修改：只实例化 Stream 对象，不进行全局重定向
-        # 日志重定向将由主窗口（MainWindow）负责
         self.log_stream = Stream(self.log_output)
 
 
@@ -109,7 +107,9 @@ class DataFilterTab(QWidget):
         f_layout = QHBoxLayout()
         self.match_mode_label = QLabel("匹配模式：")
         self.match_mode_combo = QComboBox()
-        self.match_mode_combo.addItems(["精确匹配", "模糊匹配"])
+        # === 更改：新增两个模式并重命名原有模式 ===
+        self.match_mode_combo.addItems(["精确匹配", "包含匹配", "前缀匹配", "后缀匹配"])
+        # === 更改结束 ===
         f_layout.addWidget(self.match_mode_label)
         f_layout.addWidget(self.match_mode_combo)
         main_layout.addLayout(f_layout)
@@ -219,13 +219,10 @@ class DataFilterTab(QWidget):
         try:
             header_row = int(self.header_row_combo.currentText()) - 1
             if file_to_read.endswith('.csv'):
-                # 使用 dtype=str 来确保所有列都以字符串类型读取
                 df = pd.read_csv(file_to_read, header=header_row, nrows=0, dtype=str)
             else:
-                # 对于Excel，无法在读取时直接设置所有列为字符串
                 df = pd.read_excel(file_to_read, header=header_row, nrows=0)
 
-            # 显式地将列名列表中的每个元素都转换为字符串
             self.file_a_cols = [str(col) for col in list(df.columns)]
 
             self.col_a_combo.clear()
@@ -236,7 +233,6 @@ class DataFilterTab(QWidget):
             print(f"读取文件a列标题失败：{e}")
 
     def start_filter(self):
-        # 禁用按钮，避免重复点击
         self.filter_button.setEnabled(False)
         self.log_output.clear()
 
@@ -268,13 +264,11 @@ class DataFilterTab(QWidget):
             print(f"输出目录: {output_dir}")
             os.makedirs(output_dir, exist_ok=True)
 
-            # 获取筛选条件
             header_row_b = int(self.header_row_combo.currentText()) - 1
             print(f"正在读取筛选条件文件（{self.file_b_path}）...")
             filter_criteria = read_file_b_criteria(self.file_b_path, header_row=header_row_b)
             print(f"筛选条件共 {len(filter_criteria)} 条。")
 
-            # 清空输出目录
             print("正在清空输出目录...")
             for filename in os.listdir(output_dir):
                 file_path = os.path.join(output_dir, filename)
@@ -314,7 +308,6 @@ class DataFilterTab(QWidget):
                 )
 
                 if df_filtered is not None and not df_filtered.empty:
-                    # 重新读取文件以获取总行数，这里可以优化
                     try:
                         original_df = pd.read_excel(full_path_a, header=None) if full_path_a.endswith(
                             ('.xlsx', '.xls')) else pd.read_csv(full_path_a, header=None)
@@ -340,7 +333,6 @@ class DataFilterTab(QWidget):
                         print(f"  - 【输出文件】已输出第 {output_file_index} 个分页文件，记录数：{len(filtered_chunk)}")
                         output_file_index += 1
 
-            # 写入剩余数据
             if not filtered_data_all.empty:
                 output_file = os.path.join(output_dir, f"filtered_part_{output_file_index}.xlsx")
                 filtered_data_all.to_excel(output_file, index=False)
