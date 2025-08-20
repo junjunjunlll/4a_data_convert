@@ -1,27 +1,31 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-                             QComboBox, QFileDialog, QLineEdit, QTextEdit, QMessageBox)
+                             QComboBox, QFileDialog, QLineEdit, QTextEdit, QMessageBox, QGroupBox)
+from PyQt6.QtCore import QObject, pyqtSignal
 # 从 logic.data_match 导入更新后的函数
-from logic.data_match import read_file, get_unique_values, fuzzy_match_and_fill, export_match_results
+from logic.data_match import get_unique_values, fuzzy_match_and_fill, export_match_results
 import os
 import sys
 import pandas as pd
 from PyQt6.QtWidgets import QApplication
+from logic.utils import read_file
 
 
 # 自定义一个流类，用于将stdout重定向到QTextEdit
-class Stream(object):
+class Stream(QObject):
+    new_text_signal = pyqtSignal(str)
+
     def __init__(self, new_text_edit):
+        super().__init__()
         self.text_edit = new_text_edit
+        self.new_text_signal.connect(self.text_edit.append)
         self.current_line = ""
 
     def write(self, text):
         self.current_line += text
         if '\n' in self.current_line:
             lines = self.current_line.split('\n')
-            self.text_edit.append(lines[0])
+            self.new_text_signal.emit(lines[0])
             self.current_line = '\n'.join(lines[1:])
-            self.text_edit.verticalScrollBar().setValue(self.text_edit.verticalScrollBar().maximum())
-            QApplication.processEvents()
 
     def flush(self):
         pass
@@ -40,9 +44,9 @@ class DataMatchTab(QWidget):
 
         self.setup_ui()
 
+        # 在这里只实例化 Stream 对象，不进行全局重定向
+        # 日志重定向将在主窗口中动态完成
         self.log_stream = Stream(self.log_output)
-        sys.stdout = self.log_stream
-        sys.stderr = self.log_stream
 
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
@@ -111,6 +115,24 @@ class DataMatchTab(QWidget):
         f_layout.addWidget(self.file_b_path_label)
         f_layout.addWidget(self.select_file_b_button)
         main_layout.addLayout(f_layout)
+
+        # === 新增分隔符选择 UI ===
+        separator_layout = QHBoxLayout()
+        self.old_separator_label = QLabel("原分隔符：")
+        self.old_separator_combo = QComboBox()
+        self.old_separator_combo.addItems(['/', '&', '|', '\\', '(无)'])
+        self.old_separator_combo.setCurrentText('(无)')
+
+        self.new_separator_label = QLabel("目标分隔符：")
+        self.new_separator_combo = QComboBox()
+        self.new_separator_combo.addItems(['/', '&', '|', '\\', '(无)'])
+        self.new_separator_combo.setCurrentText('/')
+
+        separator_layout.addWidget(self.old_separator_label)
+        separator_layout.addWidget(self.old_separator_combo)
+        separator_layout.addWidget(self.new_separator_label)
+        separator_layout.addWidget(self.new_separator_combo)
+        main_layout.addLayout(separator_layout)
 
         # 匹配按钮
         g_layout = QHBoxLayout()
@@ -211,10 +233,7 @@ class DataMatchTab(QWidget):
 
         try:
             header_row = int(self.header_row_combo.currentText()) - 1
-            if file_to_read.endswith('.csv'):
-                df = pd.read_csv(file_to_read, header=header_row, nrows=0, dtype=str)
-            else:
-                df = pd.read_excel(file_to_read, header=header_row, nrows=0)
+            df = read_file(file_to_read, header_row=header_row)
 
             self.file_a_cols = [str(col) for col in list(df.columns)]
             self.col_a_combo.clear()
@@ -258,9 +277,19 @@ class DataMatchTab(QWidget):
             QMessageBox.warning(self, "警告", "请选择匹配关系文件（文件b）！")
             return
 
+        old_sep = self.old_separator_combo.currentText()
+        new_sep = self.new_separator_combo.currentText()
+
+        if old_sep == '(无)':
+            old_sep = None
+        if new_sep == '(无)':
+            new_sep = None
+
         try:
             print("--- 开始进行数据匹配 ---")
-            self.matched_results, self.unmatched_values = fuzzy_match_and_fill(self.unique_values, self.file_b_path)
+            self.matched_results, self.unmatched_values = fuzzy_match_and_fill(
+                self.unique_values, self.file_b_path, old_separator=old_sep, new_separator=new_sep
+            )
 
             if self.matched_results or self.unmatched_values:
                 self.export_button.setEnabled(True)

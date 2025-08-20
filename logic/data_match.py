@@ -1,43 +1,11 @@
 import pandas as pd
 import os
 import re
-import chardet
+import logging
+from rapidfuzz import process, fuzz
+from logic.utils import read_file
 
-
-def read_file(file_path, header_row):
-    """
-    根据文件扩展名读取CSV或Excel文件，并自动尝试解析编码。
-    返回DataFrame。
-    """
-    try:
-        if file_path.endswith('.csv'):
-            with open(file_path, 'rb') as f:
-                result = chardet.detect(f.read())
-                encoding = result['encoding']
-
-            if not encoding or result['confidence'] < 0.8:
-                common_encodings = ['utf-8', 'gbk', 'gb18030', 'latin-1', 'iso-8859-1']
-                for enc in common_encodings:
-                    try:
-                        df = pd.read_csv(file_path, header=header_row, dtype='str', encoding=enc)
-                        print(f"成功使用 '{enc}' 编码读取文件：{os.path.basename(file_path)}")
-                        break
-                    except UnicodeDecodeError:
-                        continue
-                else:
-                    raise ValueError("无法自动识别文件编码，请确保文件格式正确。")
-            else:
-                df = pd.read_csv(file_path, header=header_row, dtype='str', encoding=encoding)
-                print(f"成功使用 '{encoding}' 编码读取文件：{os.path.basename(file_path)}")
-        else:
-            df = pd.read_excel(file_path, header=header_row)
-            for col in df.columns:
-                df[col] = df[col].astype(str)
-
-        df.columns = [str(col) for col in df.columns]
-        return df
-    except Exception as e:
-        raise ValueError(f"读取文件失败：{file_path} - {e}")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def get_unique_values(file_a_path, is_dir_mode, header_row, col_a):
@@ -64,7 +32,8 @@ def get_unique_values(file_a_path, is_dir_mode, header_row, col_a):
                 print(f"警告: 文件 '{os.path.basename(full_path_a)}' 中找不到列: '{col_a}'。跳过此文件。")
                 continue
 
-            unique_values.update(df_a[col_a].dropna().unique())
+            # 使用 .astype(str) 防止数据类型问题
+            unique_values.update(df_a[col_a].dropna().astype(str).unique())
             print(f"  - 从文件 '{os.path.basename(full_path_a)}' 中提取 {len(unique_values)} 条唯一值。")
         except Exception as e:
             print(f"处理文件 '{os.path.basename(full_path_a)}' 失败：{e}")
@@ -75,81 +44,79 @@ def get_unique_values(file_a_path, is_dir_mode, header_row, col_a):
     return unique_values
 
 
-def fuzzy_match_and_fill(source_values, mapping_file_path):
+def fuzzy_match_and_fill(source_values, mapping_file_path, old_separator=None, new_separator=None):
     """
     根据映射文件对去重后的源值进行模糊匹配和填充。
+    新增了分隔符替换功能。
+    **已优化为右模糊匹配（前缀匹配）**
     """
     try:
-        if mapping_file_path.endswith('.csv'):
-            common_encodings = ['utf-8', 'gbk', 'gb18030', 'latin-1', 'iso-8859-1']
-            df_b = None
-            for encoding in common_encodings:
-                try:
-                    df_b = pd.read_csv(mapping_file_path, header=None, dtype=str, encoding=encoding)
-                    print(f"成功使用 '{encoding}' 编码读取文件b")
-                    break
-                except UnicodeDecodeError:
-                    continue
-            if df_b is None:
-                raise ValueError("无法自动识别文件b的编码。")
-        else:
-            df_b = pd.read_excel(mapping_file_path, header=None)
+        df_b = read_file(mapping_file_path, header_row=None)
 
         if df_b.shape[1] < 2:
             raise ValueError("匹配关系文件（文件b）至少需要两列：第一列为资源组，第二列为匹配值。")
 
-        # **改进点1：直接使用 B 文件的第一列作为匹配模式，第二列作为结果**
-        # 这里的 key 是匹配模式，value 是你最终想要的结果
+        # 将第一列和第二列转换为字符串并去除首尾空格
+        df_b.iloc[:, 0] = df_b.iloc[:, 0].astype(str).str.strip()
+        df_b.iloc[:, 1] = df_b.iloc[:, 1].astype(str).str.strip()
+
+        # **新增逻辑：处理分隔符替换**
+        if old_separator and new_separator and old_separator != new_separator:
+            # 处理转义字符
+            if old_separator == '\\':
+                old_separator = r'\\'
+            logging.info(f"正在将文件B第一列中的分隔符 '{old_separator}' 替换为 '{new_separator}'")
+            df_b.iloc[:, 0] = df_b.iloc[:, 0].str.replace(old_separator, new_separator, regex=False)
+
+        # 构建匹配字典
         mapping_dict = dict(zip(df_b.iloc[:, 0], df_b.iloc[:, 1]))
 
-        # **改进点2：不再需要反转字典**
-        # 直接使用 mapping_dict 进行匹配
+        # **优化点：对 mapping_dict 的键按长度进行降序排序**
+        sorted_keys = sorted(mapping_dict.keys(), key=len, reverse=True)
 
         matched_results = {}
         unmatched = set()
         match_count = 0
 
-        for resource_group in source_values:
+        logging.info("开始进行右模糊匹配...")
+        for value in source_values:
             matched = False
-            # **改进点3：循环遍历 mapping_dict**
-            for pattern_value, result_key in mapping_dict.items():
-                if pd.isna(pattern_value) or pd.isna(result_key):
+            # 将源值转换为字符串并转为小写
+            value_str = str(value).strip().lower()
+
+            # **核心优化：遍历排序后的键进行前缀匹配**
+            for pattern_key in sorted_keys:
+                if pd.isna(pattern_key) or not pattern_key:
                     continue
 
-                # 模糊匹配
-                # 使用 re.search 在 resource_group 中搜索 pattern_value
-                # 推荐使用 ^ 锚点，确保 pattern_value 位于 resource_group 的开头
-                # 比如 '中国移动...' 才能匹配到 '中国移动.../专网...'
-                # 这比简单的 'in' 检查更精确，也比不带 ^ 的 re.search 更能防止误匹配
-                # re.escape() 用于处理 pattern_value 中可能存在的特殊字符
-
-                # 对两个字符串进行预处理，去除首尾空格，转换为字符串
-                resource_group_str = str(resource_group).strip()
-                pattern_value_str = str(pattern_value).strip()
-
-                if re.search(f'^{re.escape(pattern_value_str)}', resource_group_str, re.IGNORECASE):
-                    # **改进点4：将 B 文件的第二列（即 result_key）作为结果**
-                    # 这与你的注释是吻合的
-                    matched_results[resource_group] = result_key
-                    match_count += 1
+                # 转换为小写进行匹配，并使用 re.match 确保是从开头进行匹配
+                # re.escape() 用于处理模式中的特殊字符
+                if re.match(re.escape(pattern_key.lower()), value_str):
+                    matched_results[value] = mapping_dict[pattern_key]
                     matched = True
-                    break
+                    match_count += 1
+                    logging.info(f"成功匹配: '{value}' -> '{mapping_dict[pattern_key]}'")
+                    break  # 找到最长匹配后立即停止
 
             if not matched:
-                unmatched.add(resource_group)
+                unmatched.add(value)
+                logging.info(f"未匹配: '{value}'")
 
         print("\n--- 匹配结果总结 ---")
         print(f"总计资源组数量: {len(source_values)}")
         print(f"成功匹配数量: {match_count}")
         print(f"无法匹配数量: {len(unmatched)}")
-        print("\n无法匹配的资源组:")
-        for item in unmatched:
-            print(f"- {item}")
+
+        if unmatched:
+            print("\n无法匹配的资源组:")
+            for item in unmatched:
+                print(f"- {item}")
 
         return matched_results, unmatched
 
     except Exception as e:
-        raise ValueError(f"处理文件b失败: {e}")
+        logging.error(f"处理文件b失败: {e}")
+        raise
 
 
 def export_match_results(matched_results, unmatched_values, output_dir):
@@ -157,7 +124,6 @@ def export_match_results(matched_results, unmatched_values, output_dir):
     将匹配结果和未匹配结果分别导出为Excel文件。
     """
     try:
-        # 构建包含源值和匹配值的DataFrame
         if matched_results:
             df_matched = pd.DataFrame({
                 '文件a去重结果': list(matched_results.keys()),
@@ -169,7 +135,6 @@ def export_match_results(matched_results, unmatched_values, output_dir):
         else:
             print("\n没有成功匹配的结果，不生成匹配结果文件。")
 
-        # 导出未匹配的结果
         if unmatched_values:
             df_unmatched = pd.DataFrame(list(unmatched_values), columns=['无法匹配的资源组'])
             unmatched_file_path = os.path.join(output_dir, 'unmatched_values.xlsx')
@@ -179,4 +144,5 @@ def export_match_results(matched_results, unmatched_values, output_dir):
             print("所有资源组均已匹配，不生成未匹配结果文件。")
 
     except Exception as e:
-        raise ValueError(f"导出匹配结果失败: {e}")
+        logging.error(f"导出匹配结果失败: {e}")
+        raise

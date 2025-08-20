@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-                             QComboBox, QFileDialog, QLineEdit, QMessageBox, QTextEdit)
+                             QComboBox, QFileDialog, QLineEdit, QMessageBox, QTextEdit, QApplication)
 from PyQt6.QtGui import QIntValidator
+from PyQt6.QtCore import QObject, pyqtSignal
 from logic.data_filter import read_file_b_criteria, read_and_filter
 import os
 import sys
@@ -8,26 +9,24 @@ import pandas as pd
 
 
 # 自定义一个流类，用于将stdout重定向到QTextEdit
-class Stream(object):
+class Stream(QObject):
+    new_text_signal = pyqtSignal(str)
+
     def __init__(self, new_text_edit):
+        super().__init__()
         self.text_edit = new_text_edit
+        self.new_text_signal.connect(self.text_edit.append)
         self.current_line = ""
 
     def write(self, text):
         self.current_line += text
         if '\n' in self.current_line:
             lines = self.current_line.split('\n')
-            self.text_edit.append(lines[0])
+            self.new_text_signal.emit(lines[0])
             self.current_line = '\n'.join(lines[1:])
-            self.text_edit.verticalScrollBar().setValue(self.text_edit.verticalScrollBar().maximum())
-            QApplication.processEvents()  # 确保UI刷新
 
     def flush(self):
-        pass  # 必须有这个方法，但这里不需要执行任何操作
-
-
-# 从 PyQt6 导入 QApplication
-from PyQt6.QtWidgets import QApplication
+        pass
 
 
 class DataFilterTab(QWidget):
@@ -40,10 +39,10 @@ class DataFilterTab(QWidget):
 
         self.setup_ui()
 
-        # 初始化日志输出
+        # 关键修改：只实例化 Stream 对象，不进行全局重定向
+        # 日志重定向将由主窗口（MainWindow）负责
         self.log_stream = Stream(self.log_output)
-        sys.stdout = self.log_stream
-        sys.stderr = self.log_stream
+
 
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
