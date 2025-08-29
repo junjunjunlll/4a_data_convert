@@ -141,24 +141,28 @@ class DataMatchTab(QWidget):
         g_layout.addWidget(self.match_button)
         main_layout.addLayout(g_layout)
 
-        # 新增：输出目录配置
+        # 新增：输出目录和格式配置
         output_dir_layout = QHBoxLayout()
         self.output_dir_label = QLabel("输出目录：")
-
         if getattr(sys, 'frozen', False):
             base_path = os.path.dirname(sys.executable)
         else:
             base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
         default_output_dir = os.path.join(base_path, 'output')
-
         self.output_dir_path = QLineEdit(default_output_dir)
         self.output_dir_path.setReadOnly(True)
         self.select_output_dir_button = QPushButton("选择目录")
         self.select_output_dir_button.clicked.connect(self.select_output_dir)
+
+        self.output_format_label = QLabel("输出格式：")
+        self.output_format_combo = QComboBox()
+        self.output_format_combo.addItems(["xlsx", "csv"])
+
         output_dir_layout.addWidget(self.output_dir_label)
         output_dir_layout.addWidget(self.output_dir_path)
         output_dir_layout.addWidget(self.select_output_dir_button)
+        output_dir_layout.addWidget(self.output_format_label)
+        output_dir_layout.addWidget(self.output_format_combo)
         main_layout.addLayout(output_dir_layout)
 
         # 新增：输出按钮
@@ -306,11 +310,12 @@ class DataMatchTab(QWidget):
             return
 
         output_dir = self.output_dir_path.text()
+        output_format = self.output_format_combo.currentText()
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         try:
-            export_match_results(self.matched_results, self.unmatched_values, output_dir)
+            export_match_results(self.matched_results, self.unmatched_values, output_dir, output_format)
             QMessageBox.information(self, "成功", f"结果已成功导出到：\n{output_dir}")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"导出失败：{e}")
