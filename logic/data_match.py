@@ -2,8 +2,7 @@ import pandas as pd
 import os
 import re
 import logging
-from rapidfuzz import process, fuzz
-from logic.utils import read_file
+from logic.utils import read_file, export_match_results as utils_export_match_results
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -86,7 +85,7 @@ def fuzzy_match_and_fill(source_values, mapping_file_path, old_separator=None, n
 
             # **核心优化：遍历排序后的键进行前缀匹配**
             for pattern_key in sorted_keys:
-                if pd.isna(pattern_key) or not pattern_key:
+                if pd.isna(pattern_key) or not isinstance(pattern_key, str) or not pattern_key:
                     continue
 
                 # 转换为小写进行匹配，并使用 re.match 确保是从开头进行匹配
@@ -119,30 +118,13 @@ def fuzzy_match_and_fill(source_values, mapping_file_path, old_separator=None, n
         raise
 
 
-def export_match_results(matched_results, unmatched_values, output_dir):
+def export_match_results(matched_results, unmatched_values, output_dir, output_format):
     """
-    将匹配结果和未匹配结果分别导出为Excel文件。
+    将匹配结果和未匹配结果分别导出为文件。
+    该函数作为中间层，实际导出逻辑已转移至 utils.py。
     """
     try:
-        if matched_results:
-            df_matched = pd.DataFrame({
-                '文件a去重结果': list(matched_results.keys()),
-                '文件b匹配结果': list(matched_results.values())
-            })
-            matched_file_path = os.path.join(output_dir, 'matched_results.xlsx')
-            df_matched.to_excel(matched_file_path, index=False)
-            print(f"\n匹配结果已成功导出至: {matched_file_path}")
-        else:
-            print("\n没有成功匹配的结果，不生成匹配结果文件。")
-
-        if unmatched_values:
-            df_unmatched = pd.DataFrame(list(unmatched_values), columns=['无法匹配的资源组'])
-            unmatched_file_path = os.path.join(output_dir, 'unmatched_values.xlsx')
-            df_unmatched.to_excel(unmatched_file_path, index=False)
-            print(f"无法匹配的资源组已导出至: {unmatched_file_path}")
-        else:
-            print("所有资源组均已匹配，不生成未匹配结果文件。")
-
+        utils_export_match_results(matched_results, unmatched_values, output_dir, output_format)
     except Exception as e:
         logging.error(f"导出匹配结果失败: {e}")
         raise

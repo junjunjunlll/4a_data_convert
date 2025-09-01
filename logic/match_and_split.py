@@ -4,7 +4,8 @@ import re
 from collections import defaultdict
 import logging
 import time
-from logic.utils import read_file, get_file_list, get_excel_row_limit
+from logic.utils import read_file, get_file_list, get_excel_row_limit, \
+    export_single_file, export_split_files, export_unmatched_file
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -28,6 +29,7 @@ class MatchAndSplitProcessor:
             raise ValueError("没有找到需要处理的文件！")
 
         try:
+            # 使用统一的 read_file 函数
             df = read_file(self.all_file_paths[0], header_row=header_row - 1)
             self.column_headers = list(df.columns)
             logging.info(f"成功读取 {os.path.basename(self.all_file_paths[0])} 的列标题。")
@@ -38,6 +40,7 @@ class MatchAndSplitProcessor:
     def load_mapping_file(self, mapping_file_path):
         """加载文件B，并构建精确匹配的映射字典。"""
         try:
+            # 使用统一的 read_file 函数
             df_b = read_file(mapping_file_path, header_row=None)
             if df_b.shape[1] < 2:
                 raise ValueError("匹配关系文件（文件B）至少需要两列。")
@@ -73,6 +76,7 @@ class MatchAndSplitProcessor:
             start_time = time.time()
             try:
                 logging.info(f"开始处理文件: {os.path.basename(file_path)}")
+                # 使用统一的 read_file 函数
                 df = read_file(file_path, header_row=0)
 
                 if col_a not in df.columns:
@@ -94,7 +98,7 @@ class MatchAndSplitProcessor:
 
             except Exception as e:
                 logging.error(f"处理文件 {os.path.basename(file_path)} 失败: {e}")
-                raise  # 抛出异常，让主线程处理
+                raise
 
         if all_processed_data.empty:
             logging.warning("所有文件处理后均无数据，无法进行导出。")
@@ -107,7 +111,6 @@ class MatchAndSplitProcessor:
         logging.info(
             f"所有文件处理完毕。总记录数: {len(all_processed_data)}, 匹配记录数: {len(matched_data)}, 无匹配记录数: {len(unmatched_data)}。")
 
-        # === 核心改动：如果存在无匹配数据，发出警告 ===
         if not unmatched_data.empty:
             logging.warning(f"警告: 存在 {len(unmatched_data)} 条记录未能找到匹配项，已单独导出到无匹配文件。")
 
@@ -135,51 +138,15 @@ class MatchAndSplitProcessor:
 
     def _export_single_file(self, df, output_format):
         """导出单个匹配文件。"""
-        output_path = os.path.join(self.output_dir, f"match_and_split.{output_format}")
-
-        # 检查是否超出excel行数限制
-        if output_format == 'xlsx' and len(df) > get_excel_row_limit():
-            logging.error(f"总行数 {len(df)} 超出 XLSX 文件格式限制，无法以单文件模式导出。")
-            raise ValueError(f"总行数 {len(df)} 超出 XLSX 文件格式限制，请切换到分割模式。")
-
-        if output_format == 'xlsx':
-            df.to_excel(output_path, index=False)
-        else:
-            df.to_csv(output_path, index=False, encoding='utf-8-sig')
-        logging.info(f"成功导出单个匹配文件至: {output_path}")
+        # 调用 utils 中的统一导出方法
+        export_single_file(df, self.output_dir, "match_and_split", output_format)
 
     def _export_split_files(self, df, split_row_count, output_format):
         """导出分割匹配文件。"""
-        grouped_dataframes = defaultdict(lambda: pd.DataFrame())
-        for group_name, group_df in df.groupby('所属'):
-            grouped_dataframes[group_name] = pd.concat([grouped_dataframes[group_name], group_df], ignore_index=True)
-
-        for group_name, final_df in grouped_dataframes.items():
-            total_rows = len(final_df)
-            num_pages = (total_rows + split_row_count - 1) // split_row_count
-
-            for page in range(num_pages):
-                start_row = page * split_row_count
-                end_row = min((page + 1) * split_row_count, total_rows)
-                page_df = final_df.iloc[start_row:end_row]
-
-                safe_group_name = re.sub(r'[\\/:*?"<>|]', '_', str(group_name))
-                file_prefix = f"{safe_group_name}_match_and_split"
-                file_name = f"{file_prefix}_{page + 1}.{output_format}" if num_pages > 1 else f"{file_prefix}.{output_format}"
-                output_path = os.path.join(self.output_dir, file_name)
-
-                if output_format == 'xlsx':
-                    page_df.to_excel(output_path, index=False)
-                else:
-                    page_df.to_csv(output_path, index=False, encoding='utf-8-sig')
-                logging.info(f"导出文件: {output_path} (行数: {len(page_df)})")
+        # 调用 utils 中的统一导出方法
+        export_split_files(df, self.output_dir, split_row_count, output_format)
 
     def _export_unmatched_file(self, df, output_format):
         """导出无匹配文件。"""
-        output_path = os.path.join(self.output_dir, f"无匹配_match_and_split.{output_format}")
-
-        if output_format == 'xlsx':
-            df.to_excel(output_path, index=False)
-        else:
-            df.to_csv(output_path, index=False, encoding='utf-8-sig')
-        logging.info(f"成功导出无匹配数据文件: {output_path} (总行数: {len(df)})")
+        # 调用 utils 中的统一导出方法
+        export_unmatched_file(df, self.output_dir, output_format)

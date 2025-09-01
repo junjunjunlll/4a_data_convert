@@ -4,8 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="dbe1d36c-db24-478c-90fa-25d51974cc45" name="更改" comment="1. 优化数据筛选页，增加左模糊以及右模糊匹配&#10;2. readme编写第一个功能页介绍">
+    <list default="true" id="dbe1d36c-db24-478c-90fa-25d51974cc45" name="更改" comment="1. 数据筛选页面提供“仅分页功能”">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logic/data_filter.py" beforeDir="false" afterPath="$PROJECT_DIR$/logic/data_filter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logic/data_match.py" beforeDir="false" afterPath="$PROJECT_DIR$/logic/data_match.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logic/match_and_split.py" beforeDir="false" afterPath="$PROJECT_DIR$/logic/match_and_split.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logic/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/logic/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/data_filter_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/data_filter_tab.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/data_match_tab.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/data_match_tab.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,8 +31,25 @@
         <option value="HE JJ &lt;s526168173@hotmail.com&gt;" />
       </list>
     </option>
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;junjunjunlll&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/junjunjunlll/4a_data_convert.git&quot;,
+    &quot;accountId&quot;: &quot;b24a153d-f946-4067-bbd3-821914e02ba1&quot;
+  }
+}</component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 4
 }</component>
@@ -53,7 +76,7 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "master",
+    "git-widget-placeholder": "fileoutput",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -85,6 +108,7 @@
       <workItem from="1755141232820" duration="8431000" />
       <workItem from="1755501352405" duration="1029000" />
       <workItem from="1755502688991" duration="5720000" />
+      <workItem from="1756175647244" duration="8080000" />
     </task>
     <task id="LOCAL-00001" summary="默认输出目录逻辑修改为获取exe文件当前目录&#10;配置打包属性，后续通过控制台执行pyinstaller main.spec进行打包">
       <option name="closed" value="true" />
@@ -126,7 +150,23 @@
       <option name="project" value="LOCAL" />
       <updated>1755660355406</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="1. 优化数据筛选页，增加左模糊以及右模糊匹配&#10;2. readme编写第一个功能页介绍">
+      <option name="closed" value="true" />
+      <created>1755683751136</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1755683751136</updated>
+    </task>
+    <task id="LOCAL-00007" summary="1. 数据筛选页面提供“仅分页功能”">
+      <option name="closed" value="true" />
+      <created>1756177994927</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1756177994927</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -135,12 +175,24 @@
   <component name="UpdateCopyrightCheckinHandler">
     <option name="UPDATE_COPYRIGHT" value="true" />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="默认输出目录逻辑修改为获取exe文件当前目录&#10;配置打包属性，后续通过控制台执行pyinstaller main.spec进行打包" />
     <MESSAGE value="初步做好第三个页面，准备每个页面日志分别打印" />
     <MESSAGE value="完成第三个页面匹配分割页面优化" />
     <MESSAGE value="1. 优化数据筛选页，增加左模糊以及右模糊匹配&#10;2. readme编写第一个功能页介绍" />
-    <option name="LAST_COMMIT_MESSAGE" value="1. 优化数据筛选页，增加左模糊以及右模糊匹配&#10;2. readme编写第一个功能页介绍" />
+    <MESSAGE value="1. 数据筛选页面提供“仅分页功能”" />
+    <option name="LAST_COMMIT_MESSAGE" value="1. 数据筛选页面提供“仅分页功能”" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -157,10 +209,10 @@
     <SUITE FILE_PATH="coverage/4A_DATACONV$pyinstaller_build.coverage" NAME="pyinstaller build 覆盖结果" MODIFIED="1755571432896" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/4A_DATACONV$data_filter_page.coverage" NAME="data_filter_page 覆盖结果" MODIFIED="1755142361393" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/pages" />
     <SUITE FILE_PATH="coverage/4A_DATACONV$data_match_tab.coverage" NAME="data_match_tab 覆盖结果" MODIFIED="1755597779442" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/ui" />
-    <SUITE FILE_PATH="coverage/4A_DATACONV$main.coverage" NAME="main 覆盖结果" MODIFIED="1755658888018" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/4A_DATACONV$main.coverage" NAME="main 覆盖结果" MODIFIED="1756181394807" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/4A_DATACONV$data_match.coverage" NAME="data_match 覆盖结果" MODIFIED="1755589951180" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/logic" />
     <SUITE FILE_PATH="coverage/4A_DATACONV$main_windows.coverage" NAME="main_windows 覆盖结果" MODIFIED="1755599040972" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/ui" />
-    <SUITE FILE_PATH="coverage/4A_DATACONV$data_filter_tab.coverage" NAME="data_filter_tab 覆盖结果" MODIFIED="1755571832778" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/ui" />
+    <SUITE FILE_PATH="coverage/4A_DATACONV$data_filter_tab.coverage" NAME="data_filter_tab 覆盖结果" MODIFIED="1756175651628" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/ui" />
     <SUITE FILE_PATH="coverage/4A_DATACONV$data_filter.coverage" NAME="data_filter 覆盖结果" MODIFIED="1755509774269" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/logic" />
   </component>
 </project>

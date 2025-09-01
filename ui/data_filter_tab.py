@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushBut
                              QComboBox, QFileDialog, QLineEdit, QMessageBox, QTextEdit, QApplication)
 from PyQt6.QtGui import QIntValidator
 from PyQt6.QtCore import QObject, pyqtSignal
-from logic.data_filter import read_file_b_criteria, read_and_filter
+from logic.data_filter import DataFilterLogic
 import os
 import sys
 import pandas as pd
@@ -35,19 +35,31 @@ class DataFilterTab(QWidget):
         self.file_a_path = ""
         self.is_dir_mode = False
         self.file_b_path = ""
-        self.file_a_cols = []
+
+        # 初始化业务逻辑层
+        self.logic = DataFilterLogic()
 
         self.setup_ui()
 
         self.log_stream = Stream(self.log_output)
-
+        sys.stdout = self.log_stream
 
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
 
-        # 模式选择
+        # 1. 操作模式选择开关
+        operation_mode_layout = QHBoxLayout()
+        self.operation_mode_label = QLabel("操作模式：")
+        self.operation_mode_combo = QComboBox()
+        self.operation_mode_combo.addItems(["筛选", "仅分页"])
+        self.operation_mode_combo.currentIndexChanged.connect(self.on_operation_mode_changed)
+        operation_mode_layout.addWidget(self.operation_mode_label)
+        operation_mode_layout.addWidget(self.operation_mode_combo)
+        main_layout.addLayout(operation_mode_layout)
+
+        # 2. 文件/目录模式选择
         mode_layout = QHBoxLayout()
-        self.mode_label = QLabel("模式选择：")
+        self.mode_label = QLabel("数据来源模式：")
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["文件", "目录"])
         self.mode_combo.currentIndexChanged.connect(self.on_mode_changed)
@@ -55,9 +67,9 @@ class DataFilterTab(QWidget):
         mode_layout.addWidget(self.mode_combo)
         main_layout.addLayout(mode_layout)
 
-        # 1. 文件a/目录选择
+        # 3. 文件a/目录选择
         a_layout = QHBoxLayout()
-        self.file_a_label = QLabel("待筛选数据来源：")
+        self.file_a_label = QLabel("待处理数据来源：")
         self.file_a_path_label = QLineEdit()
         self.file_a_path_label.setReadOnly(True)
         self.select_source_button = QPushButton("选择文件a")
@@ -67,7 +79,7 @@ class DataFilterTab(QWidget):
         a_layout.addWidget(self.select_source_button)
         main_layout.addLayout(a_layout)
 
-        # 2. 标题行数
+        # 4. 标题行数
         b_layout = QHBoxLayout()
         self.header_row_label = QLabel("标题行数：")
         self.header_row_combo = QComboBox()
@@ -76,45 +88,43 @@ class DataFilterTab(QWidget):
         b_layout.addWidget(self.header_row_combo)
         main_layout.addLayout(b_layout)
 
-        # 3. 读取列标题
+        # 5. 读取列标题
         c_layout = QHBoxLayout()
         self.read_cols_button = QPushButton("读取标题列")
         self.read_cols_button.clicked.connect(self.read_source_columns)
         c_layout.addWidget(self.read_cols_button)
         main_layout.addLayout(c_layout)
 
-        # 4. 下拉框用于选择文件a的列
-        d_layout = QHBoxLayout()
+        # 6. 下拉框用于选择文件a的列 (筛选模式下需要)
+        self.col_a_layout = QHBoxLayout()
         self.col_label_a = QLabel("文件a筛选列：")
         self.col_a_combo = QComboBox()
-        d_layout.addWidget(self.col_label_a)
-        d_layout.addWidget(self.col_a_combo)
-        main_layout.addLayout(d_layout)
+        self.col_a_layout.addWidget(self.col_label_a)
+        self.col_a_layout.addWidget(self.col_a_combo)
+        main_layout.addLayout(self.col_a_layout)
 
-        # 5. 文件b选择
-        e_layout = QHBoxLayout()
+        # 7. 文件b选择 (筛选模式下需要)
+        self.file_b_layout = QHBoxLayout()
         self.file_b_label = QLabel("筛选数据来源文件（文件b）：")
         self.file_b_path_label = QLineEdit()
         self.file_b_path_label.setReadOnly(True)
         self.select_file_b_button = QPushButton("选择文件b")
         self.select_file_b_button.clicked.connect(self.select_file_b)
-        e_layout.addWidget(self.file_b_label)
-        e_layout.addWidget(self.file_b_path_label)
-        e_layout.addWidget(self.select_file_b_button)
-        main_layout.addLayout(e_layout)
+        self.file_b_layout.addWidget(self.file_b_label)
+        self.file_b_layout.addWidget(self.file_b_path_label)
+        self.file_b_layout.addWidget(self.select_file_b_button)
+        main_layout.addLayout(self.file_b_layout)
 
-        # 6. 匹配模式
-        f_layout = QHBoxLayout()
+        # 8. 匹配模式 (筛选模式下需要)
+        self.match_mode_layout = QHBoxLayout()
         self.match_mode_label = QLabel("匹配模式：")
         self.match_mode_combo = QComboBox()
-        # === 更改：新增两个模式并重命名原有模式 ===
         self.match_mode_combo.addItems(["精确匹配", "包含匹配", "前缀匹配", "后缀匹配"])
-        # === 更改结束 ===
-        f_layout.addWidget(self.match_mode_label)
-        f_layout.addWidget(self.match_mode_combo)
-        main_layout.addLayout(f_layout)
+        self.match_mode_layout.addWidget(self.match_mode_label)
+        self.match_mode_layout.addWidget(self.match_mode_combo)
+        main_layout.addLayout(self.match_mode_layout)
 
-        # 分页大小配置
+        # 9. 分页大小配置
         page_layout = QHBoxLayout()
         self.page_size_label = QLabel("分页大小（条）：")
         self.page_size_input = QLineEdit("1000000")
@@ -123,57 +133,64 @@ class DataFilterTab(QWidget):
         page_layout.addWidget(self.page_size_input)
         main_layout.addLayout(page_layout)
 
-        # 输出目录配置
-        output_dir_layout = QHBoxLayout()
+        # 10. 输出目录和格式配置
+        output_layout = QHBoxLayout()
         self.output_dir_label = QLabel("输出目录：")
-
-        # 获取EXE文件所在的目录
         if getattr(sys, 'frozen', False):
-            # 如果程序被PyInstaller打包
             base_path = os.path.dirname(sys.executable)
         else:
-            # 如果在PyCharm中直接运行，回到项目根目录
             base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
         default_output_dir = os.path.join(base_path, 'output')
-
         self.output_dir_path = QLineEdit(default_output_dir)
         self.output_dir_path.setReadOnly(True)
         self.select_output_dir_button = QPushButton("选择目录")
         self.select_output_dir_button.clicked.connect(self.select_output_dir)
-        output_dir_layout.addWidget(self.output_dir_label)
-        output_dir_layout.addWidget(self.output_dir_path)
-        output_dir_layout.addWidget(self.select_output_dir_button)
-        main_layout.addLayout(output_dir_layout)
 
-        # 7. 筛选按钮
+        self.output_format_label = QLabel("输出格式：")
+        self.output_format_combo = QComboBox()
+        self.output_format_combo.addItems(["xlsx", "csv"])
+
+        output_layout.addWidget(self.output_dir_label)
+        output_layout.addWidget(self.output_dir_path)
+        output_layout.addWidget(self.select_output_dir_button)
+        output_layout.addWidget(self.output_format_label)
+        output_layout.addWidget(self.output_format_combo)
+        main_layout.addLayout(output_layout)
+
+        # 11. 筛选/分页按钮
         g_layout = QHBoxLayout()
-        self.filter_button = QPushButton("开始筛选")
-        self.filter_button.clicked.connect(self.start_filter)
+        self.filter_button = QPushButton("开始处理")
+        self.filter_button.clicked.connect(self.start_processing)
         g_layout.addWidget(self.filter_button)
         main_layout.addLayout(g_layout)
 
-        # 新增：日志输出文本框
+        # 12. 日志输出文本框
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
         main_layout.addWidget(self.log_output)
 
         main_layout.addStretch()
 
-        # 确保output目录存在
         os.makedirs(self.output_dir_path.text(), exist_ok=True)
+        self.on_operation_mode_changed(0)
+
+    def on_operation_mode_changed(self, index):
+        is_filter_mode = (index == 0)
+        self.file_b_path_label.setVisible(is_filter_mode)
+        self.select_file_b_button.setVisible(is_filter_mode)
+        self.col_label_a.setVisible(is_filter_mode)
+        self.col_a_combo.setVisible(is_filter_mode)
+        self.match_mode_label.setVisible(is_filter_mode)
+        self.match_mode_combo.setVisible(is_filter_mode)
+        self.file_b_label.setVisible(is_filter_mode)
+        self.filter_button.setText("开始筛选" if is_filter_mode else "开始分页")
 
     def on_mode_changed(self, index):
-        if index == 0:
-            self.is_dir_mode = False
-            self.select_source_button.setText("选择文件a")
-            self.file_a_path_label.setText("")
-            self.file_a_path = ""
-        else:
-            self.is_dir_mode = True
-            self.select_source_button.setText("选择目录")
-            self.file_a_path_label.setText("")
-            self.file_a_path = ""
+        self.is_dir_mode = (index == 1)
+        self.select_source_button.setText("选择目录" if self.is_dir_mode else "选择文件a")
+        self.file_a_path_label.setText("")
+        self.file_a_path = ""
+        self.col_a_combo.clear()
 
     def select_source(self):
         if self.is_dir_mode:
@@ -181,13 +198,12 @@ class DataFilterTab(QWidget):
             if dir_path:
                 self.file_a_path = dir_path
                 self.file_a_path_label.setText(dir_path)
-                self.col_a_combo.clear()
         else:
             file_path, _ = QFileDialog.getOpenFileName(self, "选择文件a", "", "Files (*.csv *.xlsx *.xls)")
             if file_path:
                 self.file_a_path = file_path
                 self.file_a_path_label.setText(file_path)
-                self.read_source_columns()
+        self.col_a_combo.clear()
 
     def select_file_b(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "选择文件b", "", "Files (*.csv *.xlsx *.xls)")
@@ -206,148 +222,40 @@ class DataFilterTab(QWidget):
             return
 
         self.log_output.clear()
-        print("正在读取文件a的列标题...")
-        file_to_read = self.file_a_path
-        if self.is_dir_mode:
-            files = [f for f in os.listdir(self.file_a_path) if f.endswith(('.csv', '.xlsx', '.xls'))]
-            if not files:
-                QMessageBox.warning(self, "警告", "所选目录中没有找到可用的CSV或Excel文件！")
-                print("未找到有效文件，操作终止。")
-                return
-            file_to_read = os.path.join(self.file_a_path, files[0])
+        self.col_a_combo.clear()
 
         try:
-            header_row = int(self.header_row_combo.currentText()) - 1
-            if file_to_read.endswith('.csv'):
-                df = pd.read_csv(file_to_read, header=header_row, nrows=0, dtype=str)
-            else:
-                df = pd.read_excel(file_to_read, header=header_row, nrows=0)
-
-            self.file_a_cols = [str(col) for col in list(df.columns)]
-
-            self.col_a_combo.clear()
-            self.col_a_combo.addItems(self.file_a_cols)
+            header_row = int(self.header_row_combo.currentText())
+            column_headers = self.logic.get_source_columns(self.file_a_path, self.is_dir_mode, header_row)
+            self.col_a_combo.addItems(column_headers)
             print("列标题读取成功！")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"读取文件a列标题失败：{e}")
             print(f"读取文件a列标题失败：{e}")
 
-    def start_filter(self):
+    def start_processing(self):
         self.filter_button.setEnabled(False)
         self.log_output.clear()
 
-        if not self.file_a_path or not self.file_b_path:
-            QMessageBox.warning(self, "警告", "请选择文件/目录和筛选文件！")
-            self.filter_button.setEnabled(True)
-            return
-
-        col_a = self.col_a_combo.currentText()
-        match_mode = self.match_mode_combo.currentText()
-        header_row = int(self.header_row_combo.currentText()) - 1
-        page_size_str = self.page_size_input.text()
-
-        if not col_a:
-            QMessageBox.warning(self, "警告", "请选择文件a的筛选列！")
-            self.filter_button.setEnabled(True)
-            return
-
-        if not page_size_str or not page_size_str.isdigit() or int(page_size_str) <= 0:
-            QMessageBox.warning(self, "警告", "请填写有效的分页大小！")
-            self.filter_button.setEnabled(True)
-            return
-
-        page_size = int(page_size_str)
-        output_dir = self.output_dir_path.text()
+        # 收集所有参数
+        params = {
+            "is_filter_mode": self.operation_mode_combo.currentText() == "筛选",
+            "file_a_path": self.file_a_path,
+            "is_dir_mode": self.is_dir_mode,
+            "file_b_path": self.file_b_path,
+            "col_a": self.col_a_combo.currentText(),
+            "match_mode": self.match_mode_combo.currentText(),
+            "header_row": int(self.header_row_combo.currentText()),
+            "page_size": int(self.page_size_input.text()),
+            "output_dir": self.output_dir_path.text(),
+            "output_format": self.output_format_combo.currentText()
+        }
 
         try:
-            print("--- 开始筛选过程 ---")
-            print(f"输出目录: {output_dir}")
-            os.makedirs(output_dir, exist_ok=True)
-
-            header_row_b = int(self.header_row_combo.currentText()) - 1
-            print(f"正在读取筛选条件文件（{self.file_b_path}）...")
-            filter_criteria = read_file_b_criteria(self.file_b_path, header_row=header_row_b)
-            print(f"筛选条件共 {len(filter_criteria)} 条。")
-
-            print("正在清空输出目录...")
-            for filename in os.listdir(output_dir):
-                file_path = os.path.join(output_dir, filename)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-            print("输出目录已清空。")
-
-            filtered_data_all = pd.DataFrame()
-            output_file_index = 1
-            total_records_processed = 0
-            total_filtered_records = 0
-
-            if self.is_dir_mode:
-                files_to_process = [os.path.join(self.file_a_path, f) for f in os.listdir(self.file_a_path) if
-                                    f.endswith(('.csv', '.xlsx', '.xls'))]
-            else:
-                files_to_process = [self.file_a_path]
-
-            if not files_to_process:
-                QMessageBox.warning(self, "警告", "没有找到需要处理的文件！")
-                self.filter_button.setEnabled(True)
-                return
-
-            total_files = len(files_to_process)
-            print(f"共找到 {total_files} 个文件需要处理。")
-
-            for i, full_path_a in enumerate(files_to_process):
-                file_name = os.path.basename(full_path_a)
-                print(f"[{i + 1}/{total_files}] 正在处理文件：{file_name}")
-
-                df_filtered = read_and_filter(
-                    file_a=full_path_a,
-                    filter_criteria=filter_criteria,
-                    col_a=col_a,
-                    match_mode=match_mode,
-                    header_row=header_row
-                )
-
-                if df_filtered is not None and not df_filtered.empty:
-                    try:
-                        original_df = pd.read_excel(full_path_a, header=None) if full_path_a.endswith(
-                            ('.xlsx', '.xls')) else pd.read_csv(full_path_a, header=None)
-                        original_rows = len(original_df)
-                    except Exception as e:
-                        original_rows = "未知"
-                        print(f"  - 无法获取文件总行数: {e}")
-
-                    filtered_rows = len(df_filtered)
-                    print(f"  - 原文件记录数：{original_rows}，筛选保留记录数：{filtered_rows}")
-                    if isinstance(original_rows, int):
-                        total_records_processed += original_rows
-                    total_filtered_records += filtered_rows
-
-                    filtered_data_all = pd.concat([filtered_data_all, df_filtered], ignore_index=True)
-
-                    while len(filtered_data_all) >= page_size:
-                        filtered_chunk = filtered_data_all.iloc[:page_size]
-                        filtered_data_all = filtered_data_all.iloc[page_size:]
-
-                        output_file = os.path.join(output_dir, f"filtered_part_{output_file_index}.xlsx")
-                        filtered_chunk.to_excel(output_file, index=False)
-                        print(f"  - 【输出文件】已输出第 {output_file_index} 个分页文件，记录数：{len(filtered_chunk)}")
-                        output_file_index += 1
-
-            if not filtered_data_all.empty:
-                output_file = os.path.join(output_dir, f"filtered_part_{output_file_index}.xlsx")
-                filtered_data_all.to_excel(output_file, index=False)
-                print(
-                    f"  - 【输出文件】已输出第 {output_file_index} 个分页文件（剩余数据），记录数：{len(filtered_data_all)}")
-
-            print("\n--- 筛选过程总结 ---")
-            print(f"处理文件总数: {total_files}")
-            print(f"总记录数: {total_records_processed}")
-            print(f"筛选保留总记录数: {total_filtered_records}")
-            print(f"筛选丢弃总记录数: {total_records_processed - total_filtered_records}")
-
-            QMessageBox.information(self, "完成", "数据筛选和分页已全部完成！")
+            self.logic.process_data(params)
+            QMessageBox.information(self, "完成", "处理已全部完成！")
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"筛选失败：{e}")
+            QMessageBox.critical(self, "错误", f"处理失败：{e}")
             print(f"\n错误：{e}")
         finally:
             self.filter_button.setEnabled(True)

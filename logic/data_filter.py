@@ -1,103 +1,196 @@
 import pandas as pd
 import os
-import re
+import logging
+from logic.utils import read_file, get_file_list, export_dataframe_to_file
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def read_file(file_path, header_row):
-    """
-    根据文件扩展名读取CSV或Excel文件，并自动尝试解析编码。
-    返回DataFrame。
-    """
-    try:
-        if file_path.endswith('.csv'):
-            # 常见编码列表，可以根据需要调整顺序
-            common_encodings = ['utf-8', 'gbk', 'gb18030', 'latin-1', 'iso-8859-1']
+class DataFilterLogic:
+    def __init__(self):
+        self.log = logging.getLogger(__name__)
 
-            for encoding in common_encodings:
-                try:
-                    # 尝试用当前编码读取CSV文件
-                    df = pd.read_csv(file_path, header=header_row, dtype='str', encoding=encoding)
-                    print(f"成功使用 '{encoding}' 编码读取文件：{os.path.basename(file_path)}")
-                    break  # 成功读取，跳出循环
-                except UnicodeDecodeError:
-                    print(f"尝试使用 '{encoding}' 编码失败，继续尝试...")
-                    continue  # 失败，继续下一次循环
-            else:
-                # 如果所有编码都尝试失败
-                raise ValueError("无法自动识别文件编码，请确保文件格式正确。")
+    def get_source_columns(self, file_a_path, is_dir_mode, header_row):
+        """
+        读取文件a的列标题。
+        :param file_a_path: 文件或目录路径
+        :param is_dir_mode: 是否为目录模式
+        :param header_row: 标题行数（从1开始）
+        :return: 列标题列表
+        """
+        file_to_read = file_a_path
+        if is_dir_mode:
+            files = get_file_list(file_a_path)
+            if not files:
+                raise FileNotFoundError("所选目录中没有找到可用的CSV或Excel文件！")
+            file_to_read = files[0]
+
+        # 调用 utils 中的 read_file 函数，仅读取标题行
+        df = read_file(file_to_read, header_row=header_row - 1, nrows=0)
+        return [str(col) for col in df.columns]
+
+    def process_data(self, params):
+        """
+        根据参数处理数据。
+        :param params: 包含所有处理参数的字典
+        """
+        if params["is_filter_mode"]:
+            self._start_filter(params)
         else:
-            # 对于Excel文件，编码通常不是问题
-            df = pd.read_excel(file_path, header=header_row)
-            for col in df.columns:
-                df[col] = df[col].astype(str)
+            self._start_pagination_only(params)
 
-        # 统一将所有列名转为字符串，避免类型不一致导致的问题
-        df.columns = [str(col) for col in df.columns]
+    def _start_filter(self, params):
+        """筛选模式的业务逻辑"""
+        file_a_path = params["file_a_path"]
+        is_dir_mode = params["is_dir_mode"]
+        file_b_path = params["file_b_path"]
+        col_a = params["col_a"]
+        match_mode = params["match_mode"]
+        header_row = params["header_row"] - 1
+        page_size = params["page_size"]
+        output_dir = params["output_dir"]
+        output_format = params["output_format"]
 
-        return df
-    except Exception as e:
-        raise ValueError(f"读取文件失败：{file_path} - {e}")
+        # 参数校验
+        if not file_a_path or not file_b_path:
+            raise ValueError("请选择文件/目录和筛选文件！")
+        if not col_a:
+            raise ValueError("请选择文件a的筛选列！")
+        if page_size <= 0:
+            raise ValueError("请填写有效的分页大小！")
 
+        self.log.info("--- 开始筛选过程 ---")
+        self.log.info(f"输出目录: {output_dir}")
+        os.makedirs(output_dir, exist_ok=True)
+        self._clear_output_dir(output_dir)
 
-def read_file_b_criteria(file_b, header_row):
-    """读取文件b的第一列作为筛选条件。"""
-    try:
-        # 使用自动处理编码的 read_file 函数
-        df_b = read_file(file_b, header_row=header_row)
+        # 读取筛选条件
+        filter_criteria = self._read_file_b_criteria(file_b_path, header_row)
+        self.log.info(f"筛选条件共 {len(filter_criteria)} 条。")
 
-        if df_b.empty or len(df_b.columns) == 0:
-            raise ValueError("文件b内容为空，无法进行筛选。")
+        # 批量处理文件
+        files_to_process = get_file_list(file_a_path)
+        if not files_to_process:
+            raise FileNotFoundError("没有找到需要处理的文件！")
+        self.log.info(f"共找到 {len(files_to_process)} 个文件需要处理。")
 
-        col_b_name = df_b.columns[0]
-        filter_values = set(df_b[col_b_name].dropna())
+        filtered_data_all = pd.DataFrame()
+        total_records_processed = 0
 
-        if not filter_values:
-            raise ValueError("文件b中用于筛选的列内容为空，无法进行筛选。")
-        return filter_values
-    except Exception as e:
-        raise Exception(f"读取文件b筛选条件失败：{e}")
+        for i, full_path_a in enumerate(files_to_process):
+            file_name = os.path.basename(full_path_a)
+            self.log.info(f"[{i + 1}/{len(files_to_process)}] 正在处理文件：{file_name}")
 
+            df = read_file(full_path_a, header_row=header_row)
+            if col_a not in df.columns:
+                self.log.warning(f"文件 {file_name} 中不存在列 '{col_a}'。跳过。")
+                continue
 
-def read_and_filter(file_a, filter_criteria, col_a, match_mode, header_row):
-    """
-    读取文件a并进行筛选，返回筛选后的DataFrame。
-    此函数不负责文件写入。
-    """
-    try:
-        # 使用自动处理编码的 read_file 函数
-        df_a = read_file(file_a, header_row=header_row)
+            # 将筛选列转为小写处理
+            temp_col = df[col_a].astype(str).str.lower().fillna('')
 
-        if col_a not in df_a.columns:
-            raise ValueError(f"文件a '{os.path.basename(file_a)}' 中找不到列：'{col_a}'")
+            # 执行筛选
+            if match_mode == '精确匹配':
+                df_filtered = df[temp_col.isin(filter_criteria)].copy()
+            elif match_mode == '包含匹配':
+                df_filtered = df[temp_col.apply(lambda x: any(c in x for c in filter_criteria))].copy()
+            elif match_mode == '前缀匹配':
+                df_filtered = df[temp_col.apply(lambda x: any(x.startswith(c) for c in filter_criteria))].copy()
+            elif match_mode == '后缀匹配':
+                df_filtered = df[temp_col.apply(lambda x: any(x.endswith(c) for c in filter_criteria))].copy()
 
-        if match_mode == "精确匹配":
-            df_filtered = df_a[df_a[col_a].isin(filter_criteria)]
-        elif match_mode == "包含匹配":
-            escaped_values = [re.escape(str(val)) for val in filter_criteria if pd.notna(val)]
-            if not escaped_values:
-                return pd.DataFrame()
-            pattern = '|'.join(escaped_values)
-            df_filtered = df_a[df_a[col_a].str.contains(pattern, case=False, na=False)]
-        # === 更改：新增前缀和后缀匹配逻辑 ===
-        elif match_mode == "前缀匹配":
-            escaped_values = [f"^{re.escape(str(val))}" for val in filter_criteria if pd.notna(val)]
-            if not escaped_values:
-                return pd.DataFrame()
-            pattern = '|'.join(escaped_values)
-            df_filtered = df_a[df_a[col_a].str.contains(pattern, case=False, na=False)]
-        elif match_mode == "后缀匹配":
-            escaped_values = [f"{re.escape(str(val))}$" for val in filter_criteria if pd.notna(val)]
-            if not escaped_values:
-                return pd.DataFrame()
-            pattern = '|'.join(escaped_values)
-            df_filtered = df_a[df_a[col_a].str.contains(pattern, case=False, na=False)]
-        # === 更改结束 ===
-        else:
-            raise ValueError("不支持的匹配模式")
+            self.log.info(f"  - 原文件记录数：{len(df)}，筛选保留记录数：{len(df_filtered)}")
+            total_records_processed += len(df)
+            filtered_data_all = pd.concat([filtered_data_all, df_filtered], ignore_index=True)
 
-        return df_filtered
+        self.log.info(f"已加载所有文件，总记录数: {len(filtered_data_all)}")
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise Exception(f"处理文件 '{os.path.basename(file_a)}' 失败：{e}")
+        # 统一分页输出
+        self._export_paged_data(filtered_data_all, page_size, output_dir, output_format, "filtered_part")
+
+        self.log.info("\n--- 筛选过程总结 ---")
+        self.log.info(f"处理文件总数: {len(files_to_process)}")
+        self.log.info(f"总记录数: {total_records_processed}")
+        self.log.info(f"筛选保留总记录数: {len(filtered_data_all)}")
+        self.log.info(f"筛选丢弃总记录数: {total_records_processed - len(filtered_data_all)}")
+
+    def _start_pagination_only(self, params):
+        """仅分页模式的业务逻辑"""
+        file_a_path = params["file_a_path"]
+        page_size = params["page_size"]
+        output_dir = params["output_dir"]
+        output_format = params["output_format"]
+        header_row = params["header_row"] - 1
+
+        # 参数校验
+        if not file_a_path:
+            raise ValueError("请选择文件/目录！")
+        if page_size <= 0:
+            raise ValueError("请填写有效的分页大小！")
+
+        self.log.info("--- 开始仅分页过程 ---")
+        self.log.info(f"输出目录: {output_dir}")
+        os.makedirs(output_dir, exist_ok=True)
+        self._clear_output_dir(output_dir)
+
+        # 批量处理文件
+        files_to_process = get_file_list(file_a_path)
+        if not files_to_process:
+            raise FileNotFoundError("没有找到需要处理的文件！")
+        self.log.info(f"共找到 {len(files_to_process)} 个文件需要处理。")
+
+        all_data_to_page = pd.DataFrame()
+        total_records_processed = 0
+
+        for i, full_path_a in enumerate(files_to_process):
+            file_name = os.path.basename(full_path_a)
+            self.log.info(f"[{i + 1}/{len(files_to_process)}] 正在处理文件：{file_name}")
+
+            df = read_file(full_path_a, header_row=header_row)
+            total_records_processed += len(df)
+            all_data_to_page = pd.concat([all_data_to_page, df], ignore_index=True)
+
+        self.log.info(f"已加载所有文件，总记录数: {total_records_processed}")
+
+        # 统一分页输出
+        self._export_paged_data(all_data_to_page, page_size, output_dir, output_format, "paged_part")
+
+        self.log.info("\n--- 分页过程总结 ---")
+        self.log.info(f"处理文件总数: {len(files_to_process)}")
+        self.log.info(f"总记录数: {total_records_processed}")
+
+    def _read_file_b_criteria(self, file_b_path, header_row):
+        """读取筛选条件文件，并返回一个包含所有条件的集合。"""
+        df_b = read_file(file_b_path, header_row=None)
+        if df_b.empty:
+            raise ValueError("筛选条件文件为空，请检查文件内容。")
+        criteria_set = set(df_b.iloc[:, 0].dropna().astype(str).str.lower().tolist())
+        return criteria_set
+
+    def _export_paged_data(self, df, page_size, output_dir, output_format, prefix):
+        """通用分页导出逻辑"""
+        if df.empty:
+            self.log.info("没有数据需要导出，操作跳过。")
+            return
+
+        num_chunks = (len(df) + page_size - 1) // page_size
+        self.log.info(f"总记录数 {len(df)}，将分为 {num_chunks} 个文件进行导出。")
+
+        for i in range(num_chunks):
+            start_index = i * page_size
+            end_index = start_index + page_size
+            chunk = df.iloc[start_index:end_index]
+
+            file_name = f"{prefix}_{i + 1}"
+            export_dataframe_to_file(chunk, output_dir, file_name, output_format)
+            self.log.info(f"  - 【输出文件】已输出第 {i + 1} 个分页文件，记录数：{len(chunk)}")
+
+    def _clear_output_dir(self, directory):
+        """清空指定目录下的文件"""
+        self.log.info("正在清空输出目录...")
+        for filename in os.listdir(directory):
+            file_path = os.path.join(directory, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        self.log.info("输出目录已清空。")
