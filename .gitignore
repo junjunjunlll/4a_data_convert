@@ -1,3 +1,7 @@
 /dist/
 /build/
 /output/
+logic/__pycache__
+ui/__pycache__
+.idea/
+.venv/
